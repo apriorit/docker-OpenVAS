@@ -1,1 +1,1 @@
-# docker-ubuntu16.04-OpenVAS
+# docker-OpenVAS
