@@ -1,9 +1,9 @@
 # OpenVAS image for Docker
 
 
-| Openvas Version | Tag     | Web UI Port |
-|-----------------|---------|-------------|
-| 9               | latest/9| 9390        |
+| Openvas Version | Tag     | OpenVAS Manager Port |
+|-----------------|---------|----------------------|
+| 9               | latest/9| 9390                 |
 
 
 
