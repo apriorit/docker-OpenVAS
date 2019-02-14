@@ -76,5 +76,7 @@ openvasmd --update --verbose --progress
 ### Thanks
 
 Thanks to hackertarget for the great tutorial: http://hackertarget.com/install-openvas-7-ubuntu/
+
 Thanks to Serge Katzmann for contributing with some great work on OpenVAS 8: https://github.com/sergekatzmann/openvas8-complete
+
 Thanks to Mike Splain https://github.com/mikesplain/openvas-docker
