@@ -497,14 +497,61 @@ RUN apt-get update && \
         xterm \
         xz-utils \
         zip \
-    -yq --no-install-recommends && \
-    rm -rf /var/lib/apt/lists/*
+    -yq --no-install-recommends
 
 RUN wget -q https://github.com/Arachni/arachni/releases/download/v1.5.1/arachni-1.5.1-0.5.12-linux-x86_64.tar.gz && \
     tar -zxf arachni-1.5.1-0.5.12-linux-x86_64.tar.gz && \
     mv arachni-1.5.1-0.5.12 /opt/arachni && \
     ln -s /opt/arachni/bin/* /usr/local/bin/ && \
     rm -rf arachni*
+
+# rebuild gvm and gsa
+RUN curl -sL https://deb.nodesource.com/setup_8.x | bash - && \
+    curl -sS https://dl.yarnpkg.com/debian/pubkey.gpg | apt-key add - && \
+    echo "deb https://dl.yarnpkg.com/debian/ stable main" | tee /etc/apt/sources.list.d/yarn.list && \
+    apt update && apt install -y yarn \
+    nodejs \
+    git \ 
+    cmake \ 
+    pkg-config \
+    clang \
+    clang-format \
+    libpcre3 \ 
+    libpcre3-dev \
+    uuid-dev \
+    libssh-dev \
+    libhiredis-dev \
+    libgpgme11-dev \
+    libmount-dev \
+    libgnutls-dev \
+    libgcrypt11-dev \
+    python-polib \
+    libmicrohttpd-dev \
+    libxml2-dev \ 
+    libffi-dev \
+    libxslt1-dev \
+    libsqlite3-dev \
+    vim \
+    -yq --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN wget http://ftp.gnome.org/pub/gnome/sources/glib/2.56/glib-2.56.1.tar.xz && \
+     tar -xf glib-2.56.1.tar.xz && cd glib-2.56.1/ && ./configure --prefix=/usr --with-pcre=system && \
+     make && make install
+
+RUN git clone --depth 1 https://github.com/greenbone/gvm-libs.git && cd gvm-libs/ && \ 
+# RUN wget https://github.com/greenbone/gvm-libs/archive/v9.0.3.tar.gz && tar -xf v9.0.3.tar.gz && cd gvm-libs-9.0.3/ && \
+    mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release .. && make install
+
+RUN git clone -b gsa-7.0.3 https://github.com/apriorit/gsa.git && cd gsa/ && \
+    mkdir build && cd build && \ 
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DLOCALSTATEDIR=/var -DSYSCONFDIR=/etc .. && \
+    make && make install
+
+RUN git clone -b gvmd-7.0.3 https://github.com/apriorit/gvmd.git && cd gvmd/ && \
+    mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DLOCALSTATEDIR=/var -DSYSCONFDIR=/etc .. && make && make install
+
+# RUN openvas-manage-certs -a && openvasmd --rebuild && openvasmd --create-user=admin --password=admin
 
 RUN mkdir -p /var/run/redis && \
     wget -q --no-check-certificate \
@@ -515,15 +562,20 @@ RUN mkdir -p /var/run/redis && \
     sed -i 's/DAEMON_ARGS=""/DAEMON_ARGS="--mlisten 127.0.0.1 -m 9390 --gnutls-priorities=SECURE128:-AES-128-CBC:-CAMELLIA-128-CBC:-VERS-SSL3.0:-VERS-TLS1.0"/' /etc/init.d/openvas-gsa && \
     sed -i '/^\[ -n "$HTTP_STS_MAX_AGE" \]/a[ -n "$PUBLIC_HOSTNAME" ] && DAEMON_ARGS="$DAEMON_ARGS --allow-header-host=$PUBLIC_HOSTNAME"' /etc/init.d/openvas-gsa && \
     sed -i 's/PORT_NUMBER=4000/PORT_NUMBER=443/' /etc/default/openvas-gsa && \
-    greenbone-nvt-sync > /dev/null && \
-    greenbone-scapdata-sync > /dev/null && \
-    greenbone-certdata-sync > /dev/null && \
+    echo "# To set per ip connection limit\n#\nPER_IP_CONNECTION_LIMIT=1000" >>  /etc/default/openvas-gsa && \
+    echo "# To set user idle time before session expires (minutes)\n#\nSESSION_TIMEOUT=5" >>  /etc/default/openvas-gsa && \
+    sed -i '/^\[ -n "$PUBLIC_HOSTNAME" \]/a[ -n "$PER_IP_CONNECTION_LIMIT" ] && DAEMON_ARGS="$DAEMON_ARGS --per-ip-connection-limit=$PER_IP_CONNECTION_LIMIT"' /etc/init.d/openvas-gsa && \
+    sed -i '/^\[ -n "$PER_IP_CONNECTION_LIMIT" \]/a[ -n "$SESSION_TIMEOUT" ] && DAEMON_ARGS="$DAEMON_ARGS --timeout=$SESSION_TIMEOUT"' /etc/init.d/openvas-gsa && \    
+    greenbone-nvt-sync && \
+    greenbone-scapdata-sync && \
+    greenbone-certdata-sync && \
     BUILD=true /start && \
     service openvas-scanner stop && \
     service openvas-manager stop && \
     service openvas-gsa stop && \
     service redis-server stop
 
+RUN rm -rf gsa gvmd glib-2.56.1 glib-2.56.1.tar.xz
 
 ENV BUILD=""
 
